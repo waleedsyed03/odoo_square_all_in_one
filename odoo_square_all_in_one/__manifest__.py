@@ -9,15 +9,15 @@
 Square All-in-One for Odoo 18 (Free)
 ====================================
 
-Connect Square to Odoo with one click — no monthly fee for this module.
+Connect Square to Odoo with one click - no monthly fee for this module.
 
 Features
 --------
-* **Connect with Square** — secure OAuth (sandbox & production)
-* **Catalog sync** — Odoo ↔ Square products (push & import)
-* **Inventory sync** — multi-location stock (push & import + webhooks)
-* **eCommerce** — Square Hosted Checkout on Website Sales
-* **POS** — Square Terminal API payment method
+* **Connect with Square** - secure OAuth (sandbox & production)
+* **Catalog sync** - Odoo <-> Square products (push & import)
+* **Inventory sync** - multi-location stock (push & import + webhooks)
+* **eCommerce** - Square Hosted Checkout on Website Sales
+* **POS** - Square Terminal API payment method
 * **24/7 WhatsApp support** built into the app
 
 Requirements
