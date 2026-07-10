@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Square All-in-One',
-    'version': '18.0.2.0.4',
+    'version': '18.0.2.0.5',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
     'summary': 'Free Square integration: OAuth, catalog sync, inventory, eCommerce checkout & POS Terminal',
