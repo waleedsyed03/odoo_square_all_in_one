@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Square All-in-One for Odoo',
-    'version': '18.0.2.0.0',
+    'name': 'Square All-in-One',
+    'version': '18.0.2.0.1',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
     'summary': 'Free Square integration: OAuth, catalog sync, inventory, eCommerce checkout & POS Terminal',
@@ -30,7 +30,7 @@ This module is **100% free** and open source (LGPL-3).
     """,
     'author': 'WPPayments',
     'website': 'https://payments-connect-square.pages.dev/',
-    'support': 'https://payments-connect-square.pages.dev/support/',
+    'support': 'xayed.waleed@gmail.com',
     'maintainer': 'WPPayments',
     'license': 'LGPL-3',
     'depends': [
