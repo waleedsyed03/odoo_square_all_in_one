@@ -12,16 +12,25 @@ Replace `waleedsyed03` with your GitHub username if different.
 
 ## One-time GitHub setup
 
-1. Log in to GitHub as **xayed.waleed@gmail.com**
-2. Create a new **public** repository:
+1. Log in to GitHub with **xayed.waleed@gmail.com** (username: **waleedsyed03** if not changed).
+2. Add SSH key (already generated on this PC):
+   - Open: https://github.com/settings/ssh/new
+   - Title: `Odoo Square PC`
+   - Key (paste entire line):
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHpNxGLObK1vtByXECdxCFQzWukq4lsF+Ggttq2+fuZ8 xayed.waleed@gmail.com
+```
+
+3. Create a new **public** repository:
+   - https://github.com/new
    - Name: `odoo_square_all_in_one`
-   - Do **not** add README, .gitignore, or license (already in this repo)
-3. Add your SSH key to GitHub (Settings → SSH keys) if not already done
-4. From this folder, run:
+   - Visibility: **Public**
+   - Do **not** add README, .gitignore, or license
+4. Push the module:
 
 ```powershell
 cd c:\xampp\htdocs\site1\odoo_square_all_in_one
-git remote add origin git@github.com:waleedsyed03/odoo_square_all_in_one.git
 git push -u origin 18.0
 ```
 
