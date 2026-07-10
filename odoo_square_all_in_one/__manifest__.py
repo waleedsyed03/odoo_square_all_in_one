@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Square All-in-One',
-    'version': '18.0.2.0.2',
+    'version': '18.0.2.0.4',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
     'summary': 'Free Square integration: OAuth, catalog sync, inventory, eCommerce checkout & POS Terminal',
@@ -45,6 +45,7 @@ This module is **100% free** and open source (LGPL-3).
         'security/ir.model.access.csv',
         'data/cron_data.xml',
         'data/payment_provider_data.xml',
+        'data/payment_provider_sync.xml',
         'views/square_location_views.xml',
         'views/square_support_views.xml',
         'views/square_config_views.xml',
@@ -68,9 +69,12 @@ This module is **100% free** and open source (LGPL-3).
         'static/description/ecommerce_checkout.png',
         'static/description/pos_terminal.png',
         'static/description/whatsapp_support.png',
+        'static/description/scan.png',
         'static/description/free_open_source.png',
     ],
     'installable': True,
     'application': True,
     'auto_install': False,
+    'post_init_hook': 'post_init_hook',
+    'uninstall_hook': 'uninstall_hook',
 }
