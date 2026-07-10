@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_square_root"
+              name="Square"
+              sequence="85"
+              groups="stock.group_stock_manager"/>
+
+    <menuitem id="menu_square_config"
+              name="Configuration"
+              parent="menu_square_root"
+              action="action_square_config"
+              sequence="10"/>
+
+    <menuitem id="menu_square_locations"
+              name="Locations"
+              parent="menu_square_root"
+              action="action_square_location"
+              sequence="20"/>
+
+    <menuitem id="menu_square_support"
+              name="Support"
+              parent="menu_square_root"
+              action="action_square_support"
+              sequence="90"/>
+
+</odoo>

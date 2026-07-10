@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Square All-in-One">
+  <rect width="128" height="128" rx="24" fill="#1a1a2e"/>
+  <rect x="28" y="28" width="72" height="72" rx="12" fill="#006aff"/>
+  <path fill="#ffffff" d="M52 44h24v8H52zm0 16h24v8H52zm0 16h24v8H52z"/>
+  <circle cx="96" cy="96" r="18" fill="#25d366"/>
+  <path fill="#ffffff" d="M90 96c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6-6-2.7-6-6z"/>
+</svg>

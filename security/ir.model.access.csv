@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_square_config_user,square.config.user,model_square_config,base.group_user,1,0,0,0
+access_square_config_manager,square.config.manager,model_square_config,stock.group_stock_manager,1,1,1,1
+access_square_location_user,square.location.user,model_square_location,base.group_user,1,0,0,0
+access_square_location_manager,square.location.manager,model_square_location,stock.group_stock_manager,1,1,1,1
+access_square_support_manager,square.support.request.manager,model_square_support_request,stock.group_stock_manager,1,1,1,1

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="product_template_form_square" model="ir.ui.view">
+        <field name="name">product.template.form.square</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <page name="inventory" position="after">
+                <page string="Square" name="square_sync">
+                    <group>
+                        <group>
+                            <field name="needs_square_sync"/>
+                            <field name="square_item_id" readonly="1"/>
+                            <field name="square_last_sync" readonly="1"/>
+                        </group>
+                        <group>
+                            <button name="action_push_to_square"
+                                    type="object"
+                                    string="Push to Square"
+                                    class="btn-primary"
+                                    invisible="not needs_square_sync"/>
+                        </group>
+                    </group>
+                    <field name="square_sync_error" readonly="1" invisible="not square_sync_error"/>
+                </page>
+            </page>
+        </field>
+    </record>
+
+    <record id="product_product_form_square" model="ir.ui.view">
+        <field name="name">product.product.form.square</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_normal_form_view"/>
+        <field name="arch" type="xml">
+            <field name="barcode" position="after">
+                <field name="square_variation_id" readonly="1"/>
+                <field name="square_item_id" readonly="1"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

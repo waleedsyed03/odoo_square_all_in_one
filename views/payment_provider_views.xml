@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="payment_provider_form_square" model="ir.ui.view">
+        <field name="name">payment.provider.form.square</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position="inside">
+                <group invisible="code != 'square'" string="Square Settings">
+                    <field name="square_config_id"
+                           required="code == 'square'"
+                           options="{'no_create': True}"/>
+                    <field name="square_location_id"
+                           required="code == 'square'"
+                           options="{'no_create': True}"/>
+                </group>
+            </group>
+        </field>
+    </record>
+
+    <template id="square_redirect_form">
+        <form t-att-action="api_url" method="get" id="o_square_redirect_form">
+            <input type="submit" value="Redirecting to Square Checkout..." style="display:none;"/>
+        </form>
+        <script type="text/javascript">
+            document.getElementById('o_square_redirect_form').submit();
+        </script>
+    </template>
+
+</odoo>

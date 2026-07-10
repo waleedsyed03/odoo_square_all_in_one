@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="square_config_view_form" model="ir.ui.view">
+        <field name="name">square.config.form</field>
+        <field name="model">square.config</field>
+        <field name="arch" type="xml">
+            <form string="Square Configuration">
+                <header>
+                    <button name="action_connect_square"
+                            type="object"
+                            string="Connect with Square"
+                            class="btn-primary"
+                            invisible="oauth_connected"/>
+                    <button name="action_disconnect_square"
+                            type="object"
+                            string="Disconnect Square"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"
+                            confirm="Disconnect Square from this Odoo company?"/>
+                    <button name="action_test_connection"
+                            type="object"
+                            string="Test Connection"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"/>
+                    <button name="action_fetch_locations"
+                            type="object"
+                            string="Fetch Locations"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"/>
+                    <button name="action_sync_all_products"
+                            type="object"
+                            string="Push to Square"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"
+                            confirm="Push Odoo products to Square catalog?"/>
+                    <button name="action_import_products_from_square"
+                            type="object"
+                            string="Import from Square"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"
+                            confirm="Pull all Square catalog items into Odoo?"/>
+                    <button name="action_import_inventory_from_square"
+                            type="object"
+                            string="Import Inventory"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"
+                            confirm="Pull Square stock counts into mapped Odoo warehouses?"/>
+                    <button name="%(odoo_square_all_in_one.action_square_support)d"
+                            type="action"
+                            string="Support"
+                            class="btn-secondary"
+                            icon="fa-whatsapp"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(odoo_square_all_in_one.action_square_location)d"
+                                type="action"
+                                class="oe_stat_button"
+                                icon="fa-map-marker"
+                                context="{'default_config_id': id, 'search_default_config_id': id}">
+                            <field name="location_ids" widget="statinfo" string="Locations"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <widget name="web_ribbon" title="Connected" bg_color="text-bg-success" invisible="not oauth_connected"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Configuration Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Square Account">
+                            <field name="active" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="environment" widget="radio"/>
+                            <field name="oauth_connected" readonly="1"/>
+                            <field name="oauth_merchant_id" readonly="1" invisible="not oauth_connected"/>
+                        </group>
+                    </group>
+                    <group string="Sync Settings">
+                        <group string="Odoo → Square">
+                            <field name="sync_products"/>
+                            <field name="sync_inventory"/>
+                        </group>
+                        <group string="Square → Odoo">
+                            <field name="import_products"/>
+                            <field name="import_inventory"/>
+                            <field name="default_location_id"/>
+                        </group>
+                        <group>
+                            <field name="last_sync_at" readonly="1"/>
+                            <field name="last_sync_status" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Last Sync Message" invisible="not last_sync_message">
+                        <field name="last_sync_message" nolabel="1" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Locations" name="locations">
+                            <field name="location_ids" nolabel="1">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="square_location_id"/>
+                                    <field name="status"/>
+                                    <field name="warehouse_id"/>
+                                    <field name="stock_location_id"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="square_config_view_list" model="ir.ui.view">
+        <field name="name">square.config.list</field>
+        <field name="model">square.config</field>
+        <field name="arch" type="xml">
+            <list string="Square Configurations">
+                <field name="name"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="environment"/>
+                <field name="oauth_connected"/>
+                <field name="last_sync_at"/>
+                <field name="last_sync_status"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="square_config_view_search" model="ir.ui.view">
+        <field name="name">square.config.search</field>
+        <field name="model">square.config</field>
+        <field name="arch" type="xml">
+            <search string="Square Configuration">
+                <field name="name"/>
+                <field name="company_id"/>
+                <filter name="active" string="Active" domain="[('active', '=', True)]"/>
+                <filter name="connected" string="Connected" domain="[('oauth_connected', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}"/>
+                    <filter name="group_environment" string="Environment" context="{'group_by': 'environment'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_square_config" model="ir.actions.act_window">
+        <field name="name">Square Configuration</field>
+        <field name="res_model">square.config</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Connect your Square account
+            </p>
+            <p>
+                Choose Sandbox or Production, then click <strong>Connect with Square</strong>.
+            </p>
+        </field>
+    </record>
+
+</odoo>
