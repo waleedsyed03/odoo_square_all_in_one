@@ -61,6 +61,15 @@ This module is **100% free** and open source (LGPL-3).
     'external_dependencies': {
         'python': ['requests'],
     },
+    'images': [
+        'static/description/hero_banner.png',
+        'static/description/catalog_sync.png',
+        'static/description/inventory.png',
+        'static/description/ecommerce_checkout.png',
+        'static/description/pos_terminal.png',
+        'static/description/whatsapp_support.png',
+        'static/description/free_open_source.png',
+    ],
     'installable': True,
     'application': True,
     'auto_install': False,
