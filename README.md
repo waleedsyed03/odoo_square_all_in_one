@@ -16,9 +16,19 @@
 
 ## Install (development)
 
-1. Copy `odoo_square_all_in_one` into your Odoo addons path.
+1. Clone this repository and add the **repository root** (not the inner folder) to Odoo `addons_path`.
 2. Restart Odoo and update the app list.
-3. Install **Square All-in-One for Odoo**.
+3. Install **Square All-in-One**.
+
+Repository layout (required by Odoo Apps):
+
+```
+odoo_square_all_in_one/          ← git repo root → addons_path
+  odoo_square_all_in_one/        ← Odoo module
+    __manifest__.py
+    models/
+    ...
+```
 
 ## Odoo Apps Store release
 
