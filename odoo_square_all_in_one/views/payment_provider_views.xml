@@ -7,7 +7,12 @@
         <field name="inherit_id" ref="payment.payment_provider_form"/>
         <field name="arch" type="xml">
             <group name="provider_credentials" position="inside">
-                <group invisible="code != 'square'" string="Square Settings">
+                <group invisible="code != 'square'" string="Square Hosted Checkout">
+                    <div class="alert alert-info" role="alert" colspan="2">
+                        Customers are redirected to Square's secure hosted checkout page
+                        (<code>checkout.square.site</code>), then returned to your Odoo shop
+                        after payment — same flow as the WordPress Payments Connect Square plugin.
+                    </div>
                     <field name="square_config_id"
                            required="code == 'square'"
                            options="{'no_create': True}"/>
@@ -27,5 +32,19 @@
             document.getElementById('o_square_redirect_form').submit();
         </script>
     </template>
+
+    <record id="action_square_payment_provider" model="ir.actions.act_window">
+        <field name="name">Square Hosted Checkout</field>
+        <field name="res_model">payment.provider</field>
+        <field name="view_mode">form,list</field>
+        <field name="domain">[('code', '=', 'square')]</field>
+        <field name="context">{'search_default_code': 'square'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Connect Square first, then click <strong>Enable Hosted Checkout</strong>
+                on the Square configuration form.
+            </p>
+        </field>
+    </record>
 
 </odoo>

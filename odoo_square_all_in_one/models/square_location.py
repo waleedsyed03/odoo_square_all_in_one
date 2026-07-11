@@ -27,6 +27,16 @@ class SquareLocation(models.Model):
         required=True,
         ondelete='cascade',
     )
+    square_environment = fields.Selection(
+        selection=[
+            ('sandbox', 'Sandbox'),
+            ('production', 'Production'),
+        ],
+        string='Square Environment',
+        default='sandbox',
+        required=True,
+        help='Sandbox or Production account this location was imported from.',
+    )
     square_location_id = fields.Char(
         string='Square Location ID',
         required=True,

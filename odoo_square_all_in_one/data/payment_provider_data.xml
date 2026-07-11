@@ -2,18 +2,17 @@
 <odoo noupdate="1">
 
     <record id="payment_provider_square" model="payment.provider">
-        <field name="name">Square</field>
+        <field name="name">Square Hosted Checkout</field>
         <field name="code">square</field>
         <field name="state">disabled</field>
         <field name="is_published">False</field>
         <field name="allow_tokenization">False</field>
         <field name="capture_manually">False</field>
-    </record>
-
-    <record id="payment_method_square_card" model="payment.method">
-        <field name="name">Card</field>
-        <field name="code">card</field>
-        <field name="provider_ids" eval="[(4, ref('payment_provider_square'))]"/>
+        <field name="module_id" ref="base.module_odoo_square_all_in_one"/>
+        <field name="image_128" type="base64" file="odoo_square_all_in_one/static/description/icon.png"/>
+        <field name="redirect_form_view_id" ref="square_redirect_form"/>
+        <field name="payment_method_ids"
+               eval="[Command.set([ref('payment.payment_method_card')])]"/>
     </record>
 
 </odoo>

@@ -9,15 +9,26 @@
                 <header>
                     <button name="action_connect_square"
                             type="object"
-                            string="Connect with Square"
+                            string="Connect Square (Sandbox)"
                             class="btn-primary"
-                            invisible="oauth_connected"/>
+                            invisible="oauth_connected or environment != 'sandbox'"/>
+                    <button name="action_connect_square"
+                            type="object"
+                            string="Connect Square (Production)"
+                            class="btn-primary"
+                            invisible="oauth_connected or environment != 'production'"/>
                     <button name="action_disconnect_square"
                             type="object"
-                            string="Disconnect Square"
+                            string="Disconnect Square (Sandbox)"
                             class="btn-secondary"
-                            invisible="not oauth_connected"
-                            confirm="Disconnect Square from this Odoo company?"/>
+                            invisible="not oauth_connected or environment != 'sandbox'"
+                            confirm="Disconnect Square Sandbox from this Odoo company?"/>
+                    <button name="action_disconnect_square"
+                            type="object"
+                            string="Disconnect Square (Production)"
+                            class="btn-secondary"
+                            invisible="not oauth_connected or environment != 'production'"
+                            confirm="Disconnect Square Production from this Odoo company?"/>
                     <button name="action_test_connection"
                             type="object"
                             string="Test Connection"
@@ -46,6 +57,16 @@
                             class="btn-secondary"
                             invisible="not oauth_connected"
                             confirm="Pull Square stock counts into mapped Odoo warehouses?"/>
+                    <button name="action_enable_hosted_checkout"
+                            type="object"
+                            string="Enable Hosted Checkout"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"/>
+                    <button name="action_open_payment_provider"
+                            type="object"
+                            string="Payment Settings"
+                            class="btn-secondary"
+                            invisible="not oauth_connected"/>
                     <button name="%(odoo_square_all_in_one.action_square_support)d"
                             type="action"
                             string="Support"
@@ -63,7 +84,31 @@
                         </button>
                     </div>
                     <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <widget name="web_ribbon" title="Sandbox" bg_color="text-bg-warning" invisible="environment != 'sandbox'"/>
                     <widget name="web_ribbon" title="Connected" bg_color="text-bg-success" invisible="not oauth_connected"/>
+                    <div class="alert alert-info mb-0" role="alert" invisible="environment != 'production' or oauth_connected">
+                        <strong>Production is selected</strong> - connect your live Square seller account to process real payments.
+                    </div>
+                    <div class="alert alert-success mb-0" role="alert" invisible="not oauth_connected">
+                        Square is connected for
+                        <strong invisible="environment != 'sandbox'">Sandbox</strong>
+                        <strong invisible="environment != 'production'">Production</strong>.
+                        Switch environment to connect or disconnect a different Square account.
+                    </div>
+                    <div class="alert alert-warning mb-0" role="alert" invisible="environment != 'sandbox'">
+                        <strong>Square Sandbox is active</strong> - test payments only. No real money is charged.
+                        <br/>
+                        <strong>Sandbox setup:</strong> open the
+                        <a href="https://developer.squareup.com/console/en/sandbox-test-accounts" target="_blank" rel="noopener noreferrer">
+                            Square Sandbox dashboard
+                        </a>,
+                        sign in to your test seller account, then return here and click
+                        <strong>Connect Square (Sandbox)</strong>.
+                        <span invisible="not oauth_connected">
+                            <br/>
+                            Hosted checkout runs in <strong>Test Mode</strong> on your website while Sandbox is selected.
+                        </span>
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" placeholder="Configuration Name"/>
@@ -74,6 +119,18 @@
                             <field name="active" invisible="1"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="environment" widget="radio"/>
+                            <div class="text-muted" colspan="2" invisible="environment != 'sandbox'">
+                                Sandbox (recommended for testing). Switch to Production for real payments.
+                                <br/>
+                                Open the
+                                <a href="https://developer.squareup.com/console/en/sandbox-test-accounts" target="_blank" rel="noopener noreferrer">
+                                    Square Sandbox dashboard
+                                </a>
+                                to sign in to your test seller account before connecting.
+                            </div>
+                            <div class="text-muted" colspan="2" invisible="environment != 'production'">
+                                Live mode - real Square payments are processed.
+                            </div>
                             <field name="oauth_connected" readonly="1"/>
                             <field name="oauth_merchant_id" readonly="1" invisible="not oauth_connected"/>
                         </group>
@@ -88,6 +145,13 @@
                             <field name="import_inventory"/>
                             <field name="default_location_id"/>
                         </group>
+                        <group string="Website Payments">
+                            <div class="text-muted" colspan="2">
+                                After connecting Square, click <strong>Enable Hosted Checkout</strong>
+                                to publish the Square payment provider on your website shop
+                                (same hosted checkout flow as the WordPress plugin).
+                            </div>
+                        </group>
                         <group>
                             <field name="last_sync_at" readonly="1"/>
                             <field name="last_sync_status" readonly="1"/>
@@ -98,7 +162,7 @@
                     </group>
                     <notebook>
                         <page string="Locations" name="locations">
-                            <field name="location_ids" nolabel="1">
+                            <field name="location_ids" nolabel="1" domain="[('square_environment', '=', environment)]">
                                 <list editable="bottom">
                                     <field name="name"/>
                                     <field name="square_location_id"/>

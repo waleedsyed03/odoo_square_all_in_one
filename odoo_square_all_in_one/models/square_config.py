@@ -17,6 +17,7 @@ from .square_oauth import (
     DEFAULT_OAUTH_WORKER_BASE,
     SQUARE_OAUTH_SCOPES_CATALOG,
     SQUARE_OAUTH_SCOPES_INVENTORY,
+    SQUARE_OAUTH_SCOPES_PAYMENTS,
     SquareOAuthHelper,
 )
 
@@ -160,7 +161,14 @@ class SquareConfig(models.Model):
     oauth_connected = fields.Boolean(
         string='Square Connected',
         compute='_compute_oauth_connected',
-        store=True,
+        search='_search_oauth_connected',
+    )
+    oauth_env_data = fields.Text(
+        string='OAuth Per Environment',
+        groups='base.group_system',
+        copy=False,
+        default='{}',
+        help='Internal JSON storage for separate Sandbox and Production OAuth tokens.',
     )
     environment = fields.Selection(
         selection=[
@@ -173,7 +181,7 @@ class SquareConfig(models.Model):
     default_location_id = fields.Many2one(
         'square.location',
         string='Default Square Location',
-        domain="[('config_id', '=', id)]",
+        domain="[('config_id', '=', id), ('square_environment', '=', environment)]",
     )
     location_ids = fields.One2many(
         'square.location',
@@ -219,11 +227,297 @@ class SquareConfig(models.Model):
         ),
     ]
 
-    @api.depends('access_token', 'oauth_refresh_token')
+    _OAUTH_ENV_KEYS = (
+        'access_token',
+        'oauth_refresh_token',
+        'oauth_expires_at',
+        'oauth_merchant_id',
+        'application_id',
+        'oauth_token_refreshed_at',
+        'default_location_id',
+    )
+
+    @api.depends('environment', 'oauth_env_data')
     def _compute_oauth_connected(self):
         for config in self:
-            config.oauth_connected = bool(config.access_token)
+            config.oauth_connected = config._has_oauth_for_environment(config.environment)
 
+    def _search_oauth_connected(self, operator, value):
+        if operator not in ('=', '!='):
+            return NotImplemented
+        want_connected = (operator == '=') == bool(value)
+        matched = self.search([]).filtered(
+            lambda config: config._has_oauth_for_environment(config.environment) == want_connected
+        )
+        return [('id', 'in', matched.ids)]
+
+    def _detect_token_environment(self):
+        """Best-effort guess which Square API environment a legacy token belongs to."""
+        self.ensure_one()
+        if not self.access_token:
+            return None
+        for env in ('sandbox', 'production'):
+            try:
+                SquareAPIClient(self.access_token, env).get('/v2/locations')
+                return env
+            except UserError:
+                continue
+        return None
+
+    def _sync_active_env_credentials_if_needed(self):
+        """Align flat OAuth fields with the bucket for the selected environment."""
+        for config in self:
+            bucket = config._get_env_oauth_bucket()
+            snapshot = bucket if bucket.get('access_token') else config._empty_oauth_snapshot()
+            expected = config._snapshot_to_write_vals(snapshot)
+            current = {
+                'access_token': config.access_token or False,
+                'oauth_refresh_token': config.oauth_refresh_token or False,
+                'oauth_expires_at': config.oauth_expires_at or False,
+                'oauth_merchant_id': config.oauth_merchant_id or False,
+                'application_id': config.application_id or False,
+                'oauth_token_refreshed_at': config.oauth_token_refreshed_at or False,
+                'default_location_id': config.default_location_id.id if config.default_location_id else False,
+            }
+            if current == expected:
+                continue
+            super(SquareConfig, config.with_context(square_skip_env_switch=True)).write(expected)
+
+    def read(self, fields=None, load='_classic_read'):
+        result = super().read(fields=fields, load=load)
+        if not self.env.context.get('square_skip_env_sync'):
+            self.with_context(square_skip_env_sync=True)._sync_active_env_credentials_if_needed()
+        return result
+
+    def _parse_oauth_env_data(self):
+        self.ensure_one()
+        try:
+            data = json.loads(self.oauth_env_data or '{}')
+            return data if isinstance(data, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    def _dump_oauth_env_data(self, data):
+        return json.dumps(data)
+
+    def _empty_oauth_snapshot(self):
+        return {key: False if key == 'default_location_id' else '' for key in self._OAUTH_ENV_KEYS}
+
+    def _oauth_snapshot_from_record(self):
+        self.ensure_one()
+        return {
+            'access_token': self.access_token or '',
+            'oauth_refresh_token': self.oauth_refresh_token or '',
+            'oauth_expires_at': self.oauth_expires_at or '',
+            'oauth_merchant_id': self.oauth_merchant_id or '',
+            'application_id': self.application_id or '',
+            'oauth_token_refreshed_at': (
+                fields.Datetime.to_string(self.oauth_token_refreshed_at)
+                if self.oauth_token_refreshed_at else ''
+            ),
+            'default_location_id': self.default_location_id.id if self.default_location_id else False,
+        }
+
+    def _snapshot_to_write_vals(self, snapshot):
+        self.ensure_one()
+        default_location_id = snapshot.get('default_location_id') or False
+        if default_location_id:
+            location = self.env['square.location'].browse(default_location_id).exists()
+            if (
+                not location
+                or location.config_id != self
+                or location.square_environment != self.environment
+            ):
+                default_location_id = False
+        refreshed_at = snapshot.get('oauth_token_refreshed_at') or False
+        if refreshed_at:
+            try:
+                refreshed_at = fields.Datetime.from_string(refreshed_at)
+            except (ValueError, TypeError):
+                refreshed_at = False
+        return {
+            'access_token': snapshot.get('access_token') or False,
+            'oauth_refresh_token': snapshot.get('oauth_refresh_token') or False,
+            'oauth_expires_at': snapshot.get('oauth_expires_at') or False,
+            'oauth_merchant_id': snapshot.get('oauth_merchant_id') or False,
+            'application_id': snapshot.get('application_id') or False,
+            'oauth_token_refreshed_at': refreshed_at,
+            'default_location_id': default_location_id,
+        }
+
+    def _get_env_oauth_bucket(self, env=None):
+        self.ensure_one()
+        env = env or self.environment
+        bucket = self._parse_oauth_env_data().get(env) or {}
+        return bucket if isinstance(bucket, dict) else {}
+
+    def _persist_env_oauth(self, env=None):
+        self.ensure_one()
+        env = env or self.environment
+        data = self._parse_oauth_env_data()
+        data[env] = self._oauth_snapshot_from_record()
+        super(SquareConfig, self.with_context(square_skip_env_switch=True)).write({
+            'oauth_env_data': self._dump_oauth_env_data(data),
+        })
+
+    def _clear_env_oauth(self, env=None):
+        self.ensure_one()
+        env = env or self.environment
+        data = self._parse_oauth_env_data()
+        data[env] = self._empty_oauth_snapshot()
+        super(SquareConfig, self.with_context(square_skip_env_switch=True)).write({
+            'oauth_env_data': self._dump_oauth_env_data(data),
+        })
+
+    def _load_env_oauth(self, env=None):
+        self.ensure_one()
+        env = env or self.environment
+        snapshot = self._get_env_oauth_bucket(env) or self._empty_oauth_snapshot()
+        vals = self._snapshot_to_write_vals(snapshot)
+        super(SquareConfig, self.with_context(square_skip_env_switch=True)).write(vals)
+        self._sync_payment_provider()
+
+    def _has_oauth_for_environment(self, env):
+        self.ensure_one()
+        bucket = self._get_env_oauth_bucket(env)
+        return bool(bucket.get('access_token'))
+
+    def _repair_misplaced_oauth_buckets(self):
+        """Move tokens stored under the wrong environment bucket."""
+        self.ensure_one()
+        data = self._parse_oauth_env_data()
+        changed = False
+        for env in ('sandbox', 'production'):
+            bucket = data.get(env) or {}
+            token = bucket.get('access_token')
+            if not token:
+                continue
+            try:
+                SquareAPIClient(token, env).get('/v2/locations')
+                continue
+            except UserError:
+                other = 'production' if env == 'sandbox' else 'sandbox'
+                other_bucket = data.get(other) or {}
+                if other_bucket.get('access_token'):
+                    data[env] = self._empty_oauth_snapshot()
+                    changed = True
+                    continue
+                try:
+                    SquareAPIClient(token, other).get('/v2/locations')
+                    data[other] = bucket
+                    data[env] = self._empty_oauth_snapshot()
+                    changed = True
+                except UserError:
+                    data[env] = self._empty_oauth_snapshot()
+                    changed = True
+        if changed:
+            super(SquareConfig, self.with_context(square_skip_env_switch=True)).write({
+                'oauth_env_data': self._dump_oauth_env_data(data),
+            })
+
+    @api.model
+    def _migrate_legacy_oauth_storage(self):
+        for config in self.search([]):
+            config._repair_misplaced_oauth_buckets()
+            data = config._parse_oauth_env_data()
+            sandbox_token = (data.get('sandbox') or {}).get('access_token')
+            production_token = (data.get('production') or {}).get('access_token')
+            if not sandbox_token and not production_token and config.access_token:
+                token_env = config._detect_token_environment()
+                if not token_env:
+                    config.with_context(square_skip_env_switch=True).write({
+                        'access_token': False,
+                        'oauth_refresh_token': False,
+                        'oauth_expires_at': False,
+                        'oauth_merchant_id': False,
+                        'oauth_token_refreshed_at': False,
+                        'default_location_id': False,
+                    })
+                else:
+                    if config.location_ids:
+                        config.location_ids.write({'square_environment': token_env})
+                    data[token_env] = config._oauth_snapshot_from_record()
+                    config.with_context(square_skip_env_switch=True).write({
+                        'oauth_env_data': config._dump_oauth_env_data(data),
+                    })
+            config._sync_active_env_credentials_if_needed()
+
+    def write(self, vals):
+        env_changes = []
+        if 'environment' in vals and not self.env.context.get('square_skip_env_switch'):
+            for config in self:
+                new_env = vals['environment']
+                if config.environment != new_env:
+                    env_changes.append((config, config.environment, new_env))
+            for config, old_env, _new_env in env_changes:
+                config._persist_env_oauth(old_env)
+
+        result = super().write(vals)
+
+        if env_changes:
+            for config, _old_env, new_env in env_changes:
+                config._load_env_oauth(new_env)
+        elif not self.env.context.get('square_skip_env_switch') and (
+            {'access_token', 'oauth_refresh_token', 'oauth_expires_at', 'oauth_merchant_id',
+             'application_id', 'oauth_token_refreshed_at', 'default_location_id'} & set(vals)
+        ):
+            for config in self:
+                config._persist_env_oauth()
+        return result
+
+    @api.model
+    def _get_payment_oauth_scopes(self):
+        return SQUARE_OAUTH_SCOPES_PAYMENTS
+
+    def _get_square_payment_provider(self):
+        self.ensure_one()
+        provider = self.env['payment.provider'].search([
+            ('code', '=', 'square'),
+            ('company_id', '=', self.company_id.id),
+        ], limit=1)
+        if not provider:
+            self.env['payment.provider']._square_bootstrap_providers()
+            provider = self.env['payment.provider'].search([
+                ('code', '=', 'square'),
+                ('company_id', '=', self.company_id.id),
+            ], limit=1)
+        return provider
+
+    def _sync_payment_provider(self):
+        """Publish and link the website payment provider after Square OAuth."""
+        self.ensure_one()
+        provider = self._get_square_payment_provider()
+        if provider:
+            provider._square_sync_from_config(self)
+
+    def action_open_payment_provider(self):
+        self.ensure_one()
+        self._sync_payment_provider()
+        provider = self._get_square_payment_provider()
+        if not provider:
+            raise UserError(_('Square payment provider could not be created.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Square Hosted Checkout'),
+            'res_model': 'payment.provider',
+            'res_id': provider.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def action_enable_hosted_checkout(self):
+        """Enable Square hosted checkout on the website for this company."""
+        self.ensure_one()
+        if not self.oauth_connected:
+            raise UserError(_('Connect with Square before enabling hosted checkout.'))
+        if not self.location_ids:
+            raise UserError(_('Fetch Square locations first, then choose a default checkout location.'))
+        if not self.default_location_id:
+            self.default_location_id = self.location_ids[:1]
+
+        self._ensure_oauth_scopes(self._get_payment_oauth_scopes())
+        self._sync_payment_provider()
+        return self.action_open_payment_provider()
     @api.constrains('access_token')
     def _check_credentials(self):
         for config in self:
@@ -270,6 +564,7 @@ class SquareConfig(models.Model):
         return_url = (
             f'{self.get_base_url().rstrip("/")}/square/oauth/return'
             f'?config_id={self.id}&square_oauth_state={return_state}'
+            f'&square_oauth_env={self.environment}'
         )
         start_url = oauth.build_start_url(site_key, return_url, self.environment)
         return {
@@ -280,28 +575,33 @@ class SquareConfig(models.Model):
 
     def action_disconnect_square(self):
         self.ensure_one()
+        env = self.environment
         if self.oauth_site_key and self.access_token:
             try:
                 self._oauth_helper().revoke_token(
                     self.oauth_site_key,
                     self.access_token,
-                    self.environment,
+                    env,
                 )
             except Exception:
-                _logger.warning('Square revoke failed for config %s', self.id)
+                _logger.warning('Square revoke failed for config %s (%s)', self.id, env)
         self.write({
             'access_token': False,
             'oauth_refresh_token': False,
             'oauth_expires_at': False,
             'oauth_merchant_id': False,
             'oauth_token_refreshed_at': False,
+            'default_location_id': False,
         })
+        self._clear_env_oauth(env)
+        self._sync_payment_provider()
+        env_label = _('Sandbox') if env == 'sandbox' else _('Production')
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('Square'),
-                'message': _('Square account disconnected.'),
+                'message': _('Square %(env)s account disconnected.') % {'env': env_label},
                 'type': 'warning',
                 'sticky': False,
             },
@@ -321,9 +621,13 @@ class SquareConfig(models.Model):
             vals['application_id'] = data['merchant_id']
         self.write(vals)
         self._import_locations_from_square()
-        if self.location_ids and not self.default_location_id:
-            self.default_location_id = self.location_ids[:1]
-
+        env_locations = self.location_ids.filtered(
+            lambda loc: loc.square_environment == self.environment
+        )
+        if env_locations and not self.default_location_id:
+            self.default_location_id = env_locations[:1]
+        self._persist_env_oauth()
+        self._sync_payment_provider()
     def _import_locations_from_square(self):
         """Fetch Square locations without returning a UI notification."""
         self.ensure_one()
@@ -347,6 +651,7 @@ class SquareConfig(models.Model):
                 'country_code': (loc_data.get('address') or {}).get('country'),
                 'config_id': self.id,
                 'company_id': self.company_id.id,
+                'square_environment': self.environment,
             }
             if existing:
                 existing.write(vals)
@@ -355,10 +660,16 @@ class SquareConfig(models.Model):
 
     def _refresh_oauth_token_if_needed(self, buffer_seconds=600):
         self.ensure_one()
-        if not self.oauth_refresh_token or not self.oauth_site_key:
+        return self._refresh_env_oauth_token_if_needed(self.environment, buffer_seconds)
+
+    def _refresh_env_oauth_token_if_needed(self, env, buffer_seconds=600):
+        self.ensure_one()
+        bucket = self._get_env_oauth_bucket(env)
+        refresh_token = bucket.get('oauth_refresh_token') or ''
+        if not refresh_token or not self.oauth_site_key:
             return
 
-        expires_at = self.oauth_expires_at or ''
+        expires_at = bucket.get('oauth_expires_at') or ''
         should_refresh = not expires_at
         if expires_at:
             try:
@@ -373,25 +684,49 @@ class SquareConfig(models.Model):
 
         data = self._oauth_helper().refresh_token(
             self.oauth_site_key,
-            self.oauth_refresh_token,
-            self.environment,
+            refresh_token,
+            env,
         )
-        self.apply_oauth_token_response(data)
+        bucket.update({
+            'access_token': data.get('access_token') or bucket.get('access_token') or '',
+            'oauth_refresh_token': data.get('refresh_token') or refresh_token,
+            'oauth_expires_at': data.get('expires_at') or bucket.get('oauth_expires_at') or '',
+            'oauth_merchant_id': data.get('merchant_id') or bucket.get('oauth_merchant_id') or '',
+            'oauth_token_refreshed_at': fields.Datetime.to_string(fields.Datetime.now()),
+        })
+        if data.get('merchant_id') and not bucket.get('application_id'):
+            bucket['application_id'] = data['merchant_id']
+
+        all_data = self._parse_oauth_env_data()
+        all_data[env] = bucket
+        super(SquareConfig, self.with_context(square_skip_env_switch=True)).write({
+            'oauth_env_data': self._dump_oauth_env_data(all_data),
+        })
+        if self.environment == env:
+            super(SquareConfig, self.with_context(square_skip_env_switch=True)).write(
+                self._snapshot_to_write_vals(bucket)
+            )
 
     @api.model
     def _cron_refresh_oauth_tokens(self):
-        configs = self.search([
-            ('active', '=', True),
-            ('oauth_refresh_token', '!=', False),
-        ])
+        configs = self.search([('active', '=', True)])
         for config in configs:
-            try:
-                config._refresh_oauth_token_if_needed()
-            except Exception:
-                _logger.exception('OAuth token refresh failed for config %s', config.id)
+            for env in ('sandbox', 'production'):
+                bucket = config._get_env_oauth_bucket(env)
+                if not bucket.get('oauth_refresh_token'):
+                    continue
+                try:
+                    config._refresh_env_oauth_token_if_needed(env)
+                except Exception:
+                    _logger.exception(
+                        'OAuth token refresh failed for config %s (%s)',
+                        config.id,
+                        env,
+                    )
 
     def _get_api_client(self):
         self.ensure_one()
+        self._sync_active_env_credentials_if_needed()
         self._refresh_oauth_token_if_needed()
         if not self.access_token:
             raise UserError(_('Square is not connected. Click "Connect with Square" first.'))
@@ -489,6 +824,10 @@ class SquareConfig(models.Model):
     def action_fetch_locations(self):
         self.ensure_one()
         self._import_locations_from_square()
+        if self.location_ids and not self.default_location_id:
+            self.default_location_id = self.location_ids[:1]
+        if self.oauth_connected:
+            self._sync_payment_provider()
         count = len(self.location_ids)
         return {
             'type': 'ir.actions.client',

@@ -18,6 +18,12 @@
               action="action_square_location"
               sequence="20"/>
 
+    <menuitem id="menu_square_payment_provider"
+              name="Hosted Checkout"
+              parent="menu_square_root"
+              action="action_square_payment_provider"
+              sequence="30"/>
+
     <menuitem id="menu_square_support"
               name="Support"
               parent="menu_square_root"

@@ -42,6 +42,11 @@ class SquareOAuthController(http.Controller):
             site_key = config.oauth_site_key or config._ensure_worker_registered()
             site_url = SquareOAuthHelper.normalize_site_url(config._get_site_base_url())
             data = oauth.claim_session(site_key, session_id, site_url)
+
+            oauth_env = request.httprequest.args.get('square_oauth_env')
+            if oauth_env in ('sandbox', 'production') and config.environment != oauth_env:
+                config.write({'environment': oauth_env})
+
             config.apply_oauth_token_response(data)
             _logger.info('Square OAuth connected for config %s', config.id)
         except Exception as exc:
