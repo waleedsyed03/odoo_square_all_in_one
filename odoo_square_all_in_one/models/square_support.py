@@ -96,7 +96,7 @@ class SquareSupportRequest(models.TransientModel):
         self.ensure_one()
         subject = self.subject or self._get_issue_label()
         return '\n'.join([
-            _('Square All-in-One — support request'),
+            _('Square Sync & Pay — support request'),
             '',
             _('Name') + ': ' + (self.name or ''),
             _('Email') + ': ' + (self.email or ''),

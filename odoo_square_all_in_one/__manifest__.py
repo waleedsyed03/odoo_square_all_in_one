@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Square All-in-One',
-    'version': '18.0.2.0.9',
+    'name': 'Square Sync & Pay: Inventory, Google Pay, Apple Pay+',
+    'version': '18.0.2.1.0',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
-    'summary': 'Free Square integration: OAuth, catalog sync, inventory, eCommerce checkout & POS Terminal',
+    'summary': 'Sync catalog & inventory with Square. Hosted checkout with Google Pay, Apple Pay, Cash App & Afterpay.',
     'description': """
-Square All-in-One for Odoo 18 (Free)
+Square Sync & Pay for Odoo 18 (Free)
 ====================================
 
 Connect Square to Odoo with one click - no monthly fee for this module.
@@ -15,8 +15,9 @@ Features
 --------
 * **Connect with Square** - secure OAuth (sandbox & production)
 * **Catalog sync** - Odoo <-> Square products (push & import)
-* **Inventory sync** - multi-location stock (push & import + webhooks)
-* **eCommerce** - Square Hosted Checkout on Website Sales
+* **Inventory sync** - multi-location stock updates (push, import & webhooks)
+* **Payment gateway** - Square Hosted Checkout on Website Sales
+* **Digital wallets** - Google Pay, Apple Pay, Cash App Pay & Afterpay (via Square)
 * **POS** - Square Terminal API payment method
 * **24/7 WhatsApp support** built into the app
 

@@ -1,6 +1,6 @@
-# Square All-in-One for Odoo 18
+# Square Sync & Pay for Odoo 18
 
-**Free** Square integration for Odoo 18: OAuth, catalog sync (Odoo ↔ Square), multi-location inventory, Square Hosted Checkout for eCommerce, and Square Terminal for POS.
+**Free** Square integration for Odoo 18: catalog & inventory sync (Odoo ↔ Square), hosted checkout with **Google Pay, Apple Pay, Cash App & Afterpay**, and Square Terminal for POS.
 
 - **License:** LGPL-3  
 - **Price:** Free (no `price` in manifest)  
@@ -18,7 +18,7 @@
 
 1. Clone this repository and add the **repository root** (not the inner folder) to Odoo `addons_path`.
 2. Restart Odoo and update the app list.
-3. Install **Square All-in-One**.
+3. Install **Square Sync & Pay**.
 
 Repository layout (required by Odoo Apps):
 
