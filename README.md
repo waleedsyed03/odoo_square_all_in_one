@@ -4,7 +4,7 @@
 
 - **License:** LGPL-3  
 - **Price:** Free (no `price` in manifest)  
-- **Author:** [WPPayments](https://payments-connect-square.pages.dev/)  
+- **Author:** Waleed Syed  
 - **Support:** [WhatsApp & docs](https://payments-connect-square.pages.dev/support/)
 
 ## Requirements

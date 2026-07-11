@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Square All-in-One',
-    'version': '18.0.2.0.8',
+    'version': '18.0.2.0.9',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
     'summary': 'Free Square integration: OAuth, catalog sync, inventory, eCommerce checkout & POS Terminal',
@@ -28,10 +28,10 @@ Requirements
 
 This module is **100% free** and open source (LGPL-3).
     """,
-    'author': 'WPPayments',
+    'author': 'Waleed Syed',
     'website': 'https://payments-connect-square.pages.dev/',
     'support': 'xayed.waleed@gmail.com',
-    'maintainer': 'WPPayments',
+    'maintainer': 'Waleed Syed',
     'license': 'LGPL-3',
     'depends': [
         'base',
