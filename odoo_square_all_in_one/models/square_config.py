@@ -19,6 +19,7 @@ from .square_oauth import (
     SQUARE_OAUTH_SCOPES_INVENTORY,
     SQUARE_OAUTH_SCOPES_PAYMENTS,
     SquareOAuthHelper,
+    build_square_user_agent,
 )
 
 _logger = logging.getLogger(__name__)
@@ -31,27 +32,29 @@ PRODUCTION_BASE_URL = 'https://connect.squareup.com'
 class SquareAPIClient:
     """Lightweight Square REST API v2 client."""
 
-    def __init__(self, access_token, environment='sandbox', timeout=30):
+    def __init__(self, access_token, environment='sandbox', timeout=30, site_url=None):
         self.access_token = access_token
         self.base_url = (
             PRODUCTION_BASE_URL if environment == 'production' else SANDBOX_BASE_URL
         )
         self.timeout = timeout
-
-    def _headers(self):
-        return {
-            'Authorization': f'Bearer {self.access_token}',
+        self._session = requests.Session()
+        self._session.headers.update({
             'Content-Type': 'application/json',
             'Square-Version': SQUARE_API_VERSION,
-        }
+            'User-Agent': build_square_user_agent(site_url),
+        })
+
+    def _auth_headers(self):
+        return {'Authorization': f'Bearer {self.access_token}'}
 
     def request(self, method, endpoint, payload=None, params=None):
         url = f'{self.base_url}{endpoint}'
         try:
-            response = requests.request(
+            response = self._session.request(
                 method=method,
                 url=url,
-                headers=self._headers(),
+                headers=self._auth_headers(),
                 json=payload,
                 params=params,
                 timeout=self.timeout,
@@ -256,9 +259,10 @@ class SquareConfig(models.Model):
         self.ensure_one()
         if not self.access_token:
             return None
+        site_url = self._square_site_url()
         for env in ('sandbox', 'production'):
             try:
-                SquareAPIClient(self.access_token, env).get('/v2/locations')
+                SquareAPIClient(self.access_token, env, site_url=site_url).get('/v2/locations')
                 return env
             except UserError:
                 continue
@@ -387,13 +391,14 @@ class SquareConfig(models.Model):
         self.ensure_one()
         data = self._parse_oauth_env_data()
         changed = False
+        site_url = self._square_site_url()
         for env in ('sandbox', 'production'):
             bucket = data.get(env) or {}
             token = bucket.get('access_token')
             if not token:
                 continue
             try:
-                SquareAPIClient(token, env).get('/v2/locations')
+                SquareAPIClient(token, env, site_url=site_url).get('/v2/locations')
                 continue
             except UserError:
                 other = 'production' if env == 'sandbox' else 'sandbox'
@@ -403,7 +408,7 @@ class SquareConfig(models.Model):
                     changed = True
                     continue
                 try:
-                    SquareAPIClient(token, other).get('/v2/locations')
+                    SquareAPIClient(token, other, site_url=site_url).get('/v2/locations')
                     data[other] = bucket
                     data[env] = self._empty_oauth_snapshot()
                     changed = True
@@ -724,13 +729,21 @@ class SquareConfig(models.Model):
                         env,
                     )
 
+    def _square_site_url(self):
+        self.ensure_one()
+        return SquareOAuthHelper.normalize_site_url(self._get_site_base_url())
+
     def _get_api_client(self):
         self.ensure_one()
         self._sync_active_env_credentials_if_needed()
         self._refresh_oauth_token_if_needed()
         if not self.access_token:
             raise UserError(_('Square is not connected. Click "Connect with Square" first.'))
-        return SquareAPIClient(self.access_token, self.environment)
+        return SquareAPIClient(
+            self.access_token,
+            self.environment,
+            site_url=self._square_site_url(),
+        )
 
     def _ensure_fresh_oauth_token(self):
         """Refresh OAuth token before bulk API work when possible."""

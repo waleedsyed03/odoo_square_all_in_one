@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Square Sync & Pay: Inventory, Google Pay, Apple Pay+',
-    'version': '18.0.2.1.0',
+    'version': '18.0.2.1.2',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
     'summary': 'Sync catalog & inventory with Square. Hosted checkout with Google Pay, Apple Pay, Cash App & Afterpay.',

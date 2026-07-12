@@ -20,6 +20,25 @@ DEFAULT_OAUTH_WORKER_BASE = 'https://shc4wc-square-oauth.wordpress-ingenious.wor
 OAUTH_STATE_VERSION = 'v1'
 OAUTH_STATE_MAX_AGE = 1200
 SESSION_ID_RE = re.compile(r'^[a-zA-Z0-9_-]{1,128}$')
+SQUARE_USER_AGENT_PREFIX = 'Odoo-Square/18'
+
+
+def build_square_user_agent(site_url=None):
+    """WordPress-style client id: Odoo-Square/18; https://example.com/"""
+    site_url = (site_url or '').strip().rstrip('/')
+    if site_url:
+        return f'{SQUARE_USER_AGENT_PREFIX}; {site_url}'
+    return SQUARE_USER_AGENT_PREFIX
+
+
+def square_http_headers(site_url=None, extra=None):
+    headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        'User-Agent': build_square_user_agent(site_url),
+    }
+    if extra:
+        headers.update(extra)
+    return headers
 
 # Scopes required for Odoo Square All-in-One (must match worker authorize URL).
 SQUARE_OAUTH_SCOPES_CATALOG = ('ITEMS_READ', 'ITEMS_WRITE')
@@ -124,12 +143,17 @@ class SquareOAuthHelper:
     def worker_env(environment):
         return 'live' if environment == 'production' else 'sandbox'
 
+    def _site_url(self):
+        return self.normalize_site_url(
+            self.env['ir.config_parameter'].sudo().get_param('web.base.url', '')
+        )
+
     # -------------------------------------------------------------------------
     # Worker API
     # -------------------------------------------------------------------------
 
     def register_site(self, site_url):
-        headers = {'Content-Type': 'application/json; charset=utf-8'}
+        headers = square_http_headers(site_url)
         if self.registration_secret:
             headers['X-SHC4WC-Registration-Secret'] = self.registration_secret
 
@@ -169,7 +193,7 @@ class SquareOAuthHelper:
         try:
             response = requests.post(
                 f'{self.worker_base}/claim',
-                headers={'Content-Type': 'application/json; charset=utf-8'},
+                headers=square_http_headers(site_url),
                 json={
                     'site_key': site_key,
                     'session_id': session_id,
@@ -198,7 +222,7 @@ class SquareOAuthHelper:
         try:
             response = requests.post(
                 f'{self.worker_base}/refresh',
-                headers={'Content-Type': 'application/json; charset=utf-8'},
+                headers=square_http_headers(self._site_url()),
                 json={
                     'site_key': site_key,
                     'refresh_token': refresh_token,
@@ -229,7 +253,7 @@ class SquareOAuthHelper:
         try:
             requests.post(
                 f'{self.worker_base}/revoke',
-                headers={'Content-Type': 'application/json; charset=utf-8'},
+                headers=square_http_headers(self._site_url()),
                 json={
                     'site_key': site_key,
                     'access_token': access_token,

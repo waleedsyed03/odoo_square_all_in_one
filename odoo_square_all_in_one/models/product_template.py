@@ -45,6 +45,85 @@ class ProductTemplate(models.Model):
         currency = (self.company_id or self.env.company).currency_id.name
         return currency or 'USD'
 
+    def _square_fetch_catalog_versions(self, client, item_id, variation_ids):
+        """Return {object_id: version} for an existing Square ITEM and its variations."""
+        if not item_id or item_id.startswith('#'):
+            return {}
+
+        try:
+            result = client.get(
+                f'/v2/catalog/object/{item_id}',
+                params={'include_related_objects': 'true'},
+            )
+        except UserError:
+            _logger.warning('Could not fetch Square catalog versions for item %s', item_id)
+            return {}
+
+        versions = {}
+        obj = result.get('object') or {}
+        if obj.get('id') and obj.get('version') is not None:
+            versions[obj['id']] = obj['version']
+
+        for related in result.get('related_objects') or []:
+            rid = related.get('id')
+            if rid and related.get('version') is not None:
+                versions[rid] = related['version']
+
+        for var_ref in (obj.get('item_data') or {}).get('variations') or []:
+            vid = var_ref.get('id')
+            if vid and var_ref.get('version') is not None:
+                versions[vid] = var_ref['version']
+
+        wanted = {item_id} | {vid for vid in variation_ids if vid and not vid.startswith('#')}
+        return {key: value for key, value in versions.items() if key in wanted}
+
+    def _square_apply_catalog_versions(self, catalog_object, versions):
+        """Attach optimistic-concurrency version numbers required for catalog updates."""
+        if not versions:
+            return catalog_object
+
+        item_id = catalog_object.get('id')
+        if item_id and item_id in versions:
+            catalog_object['version'] = versions[item_id]
+
+        for variation in (catalog_object.get('item_data') or {}).get('variations') or []:
+            variation_id = variation.get('id')
+            if variation_id and variation_id in versions:
+                variation['version'] = versions[variation_id]
+
+        return catalog_object
+
+    def _square_batch_upsert_catalog(self, client, catalog_object, idempotency_key):
+        """Upsert catalog object; retry once after re-fetching versions on VERSION_MISMATCH."""
+        payload = {
+            'idempotency_key': idempotency_key,
+            'batches': [{'objects': [catalog_object]}],
+        }
+
+        try:
+            return client.post('/v2/catalog/batch-upsert', payload)
+        except UserError as exc:
+            if 'VERSION_MISMATCH' not in str(exc):
+                raise
+
+            item_id = catalog_object.get('id')
+            variation_ids = [
+                variation.get('id')
+                for variation in (catalog_object.get('item_data') or {}).get('variations') or []
+            ]
+            versions = self._square_fetch_catalog_versions(client, item_id, variation_ids)
+            if not versions:
+                raise
+
+            catalog_object = self._square_apply_catalog_versions(catalog_object, versions)
+            payload['idempotency_key'] = str(uuid.uuid4())
+            payload['batches'] = [{'objects': [catalog_object]}]
+            _logger.info(
+                'Retrying Square catalog upsert for product %s with fresh versions',
+                self.id,
+            )
+            return client.post('/v2/catalog/batch-upsert', payload)
+
     def _push_to_square(self):
         self.ensure_one()
         company = self.company_id or self.env.company
@@ -95,11 +174,15 @@ class ProductTemplate(models.Model):
             'item_data': item_data,
         })
 
+        variation_ids = [
+            variant.square_variation_id or f'#odoo_var_{variant.id}'
+            for variant in self.product_variant_ids
+        ]
+        versions = self._square_fetch_catalog_versions(client, item_id, variation_ids)
+        catalog_object = self._square_apply_catalog_versions(catalog_object, versions)
+
         try:
-            result = client.post('/v2/catalog/batch-upsert', {
-                'idempotency_key': idempotency_key,
-                'batches': [{'objects': [catalog_object]}],
-            })
+            result = self._square_batch_upsert_catalog(client, catalog_object, idempotency_key)
         except UserError as exc:
             self.write({'square_sync_error': str(exc)})
             raise
