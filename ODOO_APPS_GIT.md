@@ -40,5 +40,5 @@ Odoo Apps expects the branch to match the series: **`18.0`** for Odoo 18 modules
 
 ## Vendor contact
 
-- Email: xayed.waleed@gmail.com
+- Email: wordpress.ingenious@gmail.com
 - Support: https://payments-connect-square.pages.dev/support/

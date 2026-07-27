@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Square Sync & Pay: Inventory, Google Pay, Apple Pay+',
-    'version': '18.0.2.2.0',
+    'version': '18.0.2.2.1',
     'category': 'Accounting/Payment Providers',
     'sequence': 360,
     'summary': 'Sync catalog & inventory with Square. Hosted checkout with Google Pay, Apple Pay, Cash App & Afterpay.',
@@ -31,7 +31,7 @@ This module is **100% free** and open source (LGPL-3).
     """,
     'author': 'WPPayments',
     'website': 'https://payments-connect-square.pages.dev/',
-    'support': 'xayed.waleed@gmail.com',
+    'support': 'wordpress.ingenious@gmail.com',
     'maintainer': 'WPPayments',
     'license': 'LGPL-3',
     'depends': [
